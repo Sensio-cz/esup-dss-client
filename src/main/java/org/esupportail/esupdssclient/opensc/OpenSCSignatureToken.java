@@ -51,7 +51,7 @@ public class OpenSCSignatureToken implements SignatureTokenConnection {
     public OpenSCSignatureToken(KeyStore.PasswordProtection passwordProtection) {
         this.passwordProtection = passwordProtection;
             if(StringUtils.isNotBlank(EsupDSSClientLauncher.getProperties().getProperty("opensc_command_module"))) {
-            this.module += " --module " + EsupDSSClientLauncher.getProperties().getProperty("opensc_command_module");
+            this.module += " --module \"" + EsupDSSClientLauncher.getProperties().getProperty("opensc_command_module") + "\"";
         }
         detectSlot();
     }
@@ -411,11 +411,19 @@ public class OpenSCSignatureToken implements SignatureTokenConnection {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder();
             if(SystemUtils.IS_OS_WINDOWS) {
-                String fullCommand = EsupDSSClientLauncher.getProperties().getProperty("opensc_path_windows") + "\\" + command;
-                logger.debug("OpenSC>>>Full command: {}", maskSensitiveCommand(fullCommand));
-                processBuilder.command("cmd", "/C", fullCommand);
+                // Run the tool directly instead of through "cmd /C": cmd splits an unquoted
+                // "C:\Program Files\..." path, temp files under a user name with spaces,
+                // and PINs containing & ^ % characters.
+                String openscPathWindows = EsupDSSClientLauncher.getProperties().getProperty("opensc_path_windows");
+                List<String> arguments = splitCommand(command);
+                if (arguments.isEmpty()) {
+                    throw new DSSException("Empty OpenSC command");
+                }
+                arguments.set(0, new File(openscPathWindows, arguments.get(0)).getPath());
+                logger.debug("OpenSC>>>Full command: {}", maskSensitiveCommand(String.join(" ", arguments)));
+                processBuilder.command(arguments);
                 Map<String, String> envs = processBuilder.environment();
-                envs.put("Path", EsupDSSClientLauncher.getProperties().getProperty("opensc_path_windows") + ";" + System.getenv("Path"));
+                envs.put("Path", openscPathWindows + ";" + System.getenv("Path"));
             } else {
                 String openscPathLinux = EsupDSSClientLauncher.getProperties().getProperty("opensc_path_linux");
                 String fullCommand = (StringUtils.isNotBlank(openscPathLinux) ? openscPathLinux + "/" : "") + command;
@@ -462,6 +470,42 @@ public class OpenSCSignatureToken implements SignatureTokenConnection {
                 process.destroy();
             }
         }
+    }
+
+    /**
+     * Splits a command line on whitespace. Single or double quotes group an argument
+     * and are removed, so "--id '0001'" yields the argument 0001.
+     */
+    static List<String> splitCommand(String command) {
+        List<String> arguments = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inArgument = false;
+        char quote = 0;
+        for (char c : command.toCharArray()) {
+            if (quote != 0) {
+                if (c == quote) {
+                    quote = 0;
+                } else {
+                    current.append(c);
+                }
+            } else if (c == '\'' || c == '"') {
+                quote = c;
+                inArgument = true;
+            } else if (Character.isWhitespace(c)) {
+                if (inArgument) {
+                    arguments.add(current.toString());
+                    current.setLength(0);
+                    inArgument = false;
+                }
+            } else {
+                current.append(c);
+                inArgument = true;
+            }
+        }
+        if (inArgument) {
+            arguments.add(current.toString());
+        }
+        return arguments;
     }
 
     static String maskSensitiveCommand(String command) {
