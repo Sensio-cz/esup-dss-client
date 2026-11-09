@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.esupportail</groupId>
 	<artifactId>esupdssclient</artifactId>
-	<version>1.3.0</version>
+	<version>1.3.0-sensio1</version>
 	<packaging>jar</packaging>
 	<name>Esup-DSS-Client</name>
 	<description>Multi-browser, multi-platform, OpenSC remote signature tool.</description>
@@ -639,17 +639,16 @@
 								<path>./jrewin/zulu${jdk.zulu.version}-win_x64</path>
 							</jre>
 							<versionInfo>
-								<fileVersion>1.3.0.0</fileVersion>
+								<fileVersion>1.3.0.1</fileVersion>
 								<txtFileVersion>${project.version}</txtFileVersion>
 								<fileDescription>${project.name}</fileDescription>
-								<productVersion>1.3.0.0</productVersion>
-								<txtProductVersion>1.3.0.0</txtProductVersion>
-								<txtProductVersion>1.3.0.0</txtProductVersion>
+								<productVersion>1.3.0.1</productVersion>
+								<txtProductVersion>${project.version}</txtProductVersion>
+								<txtProductVersion>${project.version}</txtProductVersion>
 								<copyright>C</copyright>
 								<productName>${project.name}</productName>
 								<internalName>org.esupportail.esupdssclient</internalName>
-								<originalFilename>esup-dss-client-installer.exe</originalFilename>
-							</versionInfo>
+								<originalFilename>esup-dss-client-installer.exe</originalFilename>							</versionInfo>
 						</configuration>
 					</execution>
 				</executions>

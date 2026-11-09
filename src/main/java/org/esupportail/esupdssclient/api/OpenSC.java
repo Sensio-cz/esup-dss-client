@@ -1,5 +1,8 @@
 package org.esupportail.esupdssclient.api;
 
+import java.text.MessageFormat;
+import java.util.ResourceBundle;
+
 public class OpenSC implements Product {
 
     private String version;
@@ -15,10 +18,11 @@ public class OpenSC implements Product {
     }
 
     public String getLabel() {
+        ResourceBundle bundle = ResourceBundle.getBundle("bundles/api");
         if (enabled) {
-            return "Gestionnaire de certificats matériels (" + (version != null ? version : "OpenSC") + ")";
+            return MessageFormat.format(bundle.getString("product.selection.opensc"), version != null ? version : "OpenSC");
         } else {
-            return "Gestionnaire de certificats matériels (OpenSC non détecté)";
+            return bundle.getString("product.selection.opensc.not.detected");
         }
     }
 
