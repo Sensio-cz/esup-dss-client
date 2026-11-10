@@ -1,19 +1,35 @@
 name: Build installers
 
-# Publishing a GitHub release builds the Windows and macOS installers and attaches them
-# to it. Pushes and manual runs only keep them as workflow artifacts.
+# Builds only from master. Publishing a GitHub release whose tag is on master builds the
+# Windows and macOS installers and attaches them to it; pushes to master keep them as
+# workflow artifacts.
 on:
   release:
     types: [ published ]
   push:
-    branches-ignore: [ master ]
+    branches: [ master ]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  check-master:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require the commit to be on master
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::$GITHUB_SHA is not on master; installers are only built from master."
+            exit 1
+          fi
+
   windows:
+    needs: check-master
     runs-on: windows-latest
     steps:
       # Some source paths exceed the default Windows path limit.
@@ -42,6 +58,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   macos:
+    needs: check-master
     runs-on: macos-latest
     strategy:
       matrix:
