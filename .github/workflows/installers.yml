@@ -1,0 +1,87 @@
+name: Build installers
+
+# Builds only from master. Publishing a GitHub release whose tag is on master builds the
+# Windows and macOS installers and attaches them to it; pushes to master keep them as
+# workflow artifacts.
+on:
+  release:
+    types: [ published ]
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-master:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require the commit to be on master
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::$GITHUB_SHA is not on master; installers are only built from master."
+            exit 1
+          fi
+
+  windows:
+    needs: check-master
+    runs-on: windows-latest
+    steps:
+      # Some source paths exceed the default Windows path limit.
+      - run: git config --system core.longpaths true
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # The win64 zip (installer exe + bundled JRE) is assembled in the install phase.
+      - run: mvn -B clean install
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esup-dss-client-win64
+          path: target/esup-dss-client-win64.zip
+          compression-level: 0
+
+      - if: github.event_name == 'release'
+        run: gh release upload "${{ github.event.release.tag_name }}" target/esup-dss-client-win64.zip --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  macos:
+    needs: check-master
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        # JavaFX comes from the downloaded Zulu FX JRE, so one runner builds both architectures.
+        profile: [ mac-x64, mac-aarch64 ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - run: mvn -B clean package -Dmac.os=true -P${{ matrix.profile }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esup-dss-client-${{ matrix.profile }}
+          path: target/esup-dss-client-*.pkg
+          compression-level: 0
+
+      - if: github.event_name == 'release'
+        run: gh release upload "${{ github.event.release.tag_name }}" target/esup-dss-client-*.pkg --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

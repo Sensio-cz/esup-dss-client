@@ -6,3 +6,5 @@ src/installers
 !LICENSE
 !README.md
 !pom.xml
+!.github/
+!.github/**
