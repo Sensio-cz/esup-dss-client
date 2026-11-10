@@ -1,0 +1,70 @@
+name: Build installers
+
+# Publishing a GitHub release builds the Windows and macOS installers and attaches them
+# to it. Pushes and manual runs only keep them as workflow artifacts.
+on:
+  release:
+    types: [ published ]
+  push:
+    branches-ignore: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      # Some source paths exceed the default Windows path limit.
+      - run: git config --system core.longpaths true
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # The win64 zip (installer exe + bundled JRE) is assembled in the install phase.
+      - run: mvn -B clean install
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esup-dss-client-win64
+          path: target/esup-dss-client-win64.zip
+          compression-level: 0
+
+      - if: github.event_name == 'release'
+        run: gh release upload "${{ github.event.release.tag_name }}" target/esup-dss-client-win64.zip --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        # JavaFX comes from the downloaded Zulu FX JRE, so one runner builds both architectures.
+        profile: [ mac-x64, mac-aarch64 ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - run: mvn -B clean package -Dmac.os=true -P${{ matrix.profile }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esup-dss-client-${{ matrix.profile }}
+          path: target/esup-dss-client-*.pkg
+          compression-level: 0
+
+      - if: github.event_name == 'release'
+        run: gh release upload "${{ github.event.release.tag_name }}" target/esup-dss-client-*.pkg --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
