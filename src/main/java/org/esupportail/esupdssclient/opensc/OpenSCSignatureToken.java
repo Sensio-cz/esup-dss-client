@@ -429,6 +429,12 @@ public class OpenSCSignatureToken implements SignatureTokenConnection {
                 String fullCommand = (StringUtils.isNotBlank(openscPathLinux) ? openscPathLinux + "/" : "") + command;
                 logger.debug("OpenSC>>>Full command: {}", maskSensitiveCommand(fullCommand));
                 processBuilder.command("bash", "-c", fullCommand);
+                if (SystemUtils.IS_OS_MAC) {
+                    // Apps started from Finder get only /usr/bin:/bin:/usr/sbin:/sbin, so add the
+                    // OpenSC installer and Homebrew locations or opensc-tool is never found.
+                    Map<String, String> envs = processBuilder.environment();
+                    envs.put("PATH", "/Library/OpenSC/bin:/usr/local/bin:/opt/homebrew/bin:" + System.getenv("PATH"));
+                }
             }
 
             processBuilder.redirectErrorStream(false);
