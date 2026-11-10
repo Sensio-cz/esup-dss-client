@@ -1,11 +1,9 @@
 name: Build installers
 
-# Builds only from master. Publishing a GitHub release whose tag is on master builds the
-# Windows and macOS installers and attaches them to it; pushes to master keep them as
-# workflow artifacts.
+# Every push to master builds the Windows and macOS installers. When the pom version
+# has no release yet, the commit is tagged v<version> and released with all installers
+# attached, so releasing means bumping <version> and <installer.version> in pom.xml.
 on:
-  release:
-    types: [ published ]
   push:
     branches: [ master ]
   workflow_dispatch:
@@ -16,6 +14,8 @@ permissions:
 jobs:
   check-master:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +27,9 @@ jobs:
             echo "::error::$GITHUB_SHA is not on master; installers are only built from master."
             exit 1
           fi
+
+      - id: version
+        run: echo "version=$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
 
   windows:
     needs: check-master
@@ -52,11 +55,6 @@ jobs:
           path: target/esup-dss-client-win64.zip
           compression-level: 0
 
-      - if: github.event_name == 'release'
-        run: gh release upload "${{ github.event.release.tag_name }}" target/esup-dss-client-win64.zip --clobber
-        env:
-          GH_TOKEN: ${{ github.token }}
-
   macos:
     needs: check-master
     runs-on: macos-latest
@@ -81,7 +79,36 @@ jobs:
           path: target/esup-dss-client-*.pkg
           compression-level: 0
 
-      - if: github.event_name == 'release'
-        run: gh release upload "${{ github.event.release.tag_name }}" target/esup-dss-client-*.pkg --clobber
-        env:
-          GH_TOKEN: ${{ github.token }}
+  release:
+    needs: [ check-master, windows, macos ]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v${{ needs.check-master.outputs.version }}
+    steps:
+      - name: Skip if this version is already released
+        id: exists
+        run: |
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$TAG is already released; bump the version in pom.xml to publish a new one."
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.exists.outputs.released != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+
+      - if: steps.exists.outputs.released != 'true'
+        run: |
+          cat > notes.md <<'EOF'
+          Sensio build of esup-dss-client with a Czech and Slovak interface and working OpenSC tokens on Windows. The interface follows the system language (Czech, Slovak; otherwise English).
+
+          ## Windows
+          Download `esup-dss-client-win64.zip`, unzip it and run `esup-dss-client-installer.exe`. The installer isn't code-signed, so SmartScreen may warn: choose **More info → Run anyway**.
+
+          ## macOS
+          Download `esup-dss-client-aarch64.pkg` for Apple Silicon (M1 and newer) or `esup-dss-client-x64.pkg` for Intel Macs, and open it. The package isn't signed by Apple, so macOS blocks it the first time: open **System Settings → Privacy & Security** and click **Open Anyway**.
+          EOF
+          gh release create "$TAG" installers/* -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "esup-dss-client ${TAG#v}" --notes-file notes.md
