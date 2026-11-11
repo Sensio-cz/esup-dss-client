@@ -50,11 +50,25 @@ public class OpenSCSignatureToken implements SignatureTokenConnection {
     private String resolvedId;
 
     public OpenSCSignatureToken(KeyStore.PasswordProtection passwordProtection) {
+        this(passwordProtection, true);
+    }
+
+    private OpenSCSignatureToken(KeyStore.PasswordProtection passwordProtection, boolean detectSlot) {
         this.passwordProtection = passwordProtection;
             if(StringUtils.isNotBlank(EsupDSSClientLauncher.getProperties().getProperty("opensc_command_module"))) {
             this.module += " --module \"" + EsupDSSClientLauncher.getProperties().getProperty("opensc_command_module") + "\"";
         }
-        detectSlot();
+        if (detectSlot) {
+            detectSlot();
+        }
+    }
+
+    /**
+     * A token only used to run OpenSC tools. Skips the slot scan, which takes several seconds
+     * per reader when OpenSC does not recognize the inserted card.
+     */
+    static OpenSCSignatureToken forToolsOnly() {
+        return new OpenSCSignatureToken(null, false);
     }
 
     private void detectSlot() {

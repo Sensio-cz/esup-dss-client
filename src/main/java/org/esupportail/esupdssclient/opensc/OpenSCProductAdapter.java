@@ -130,7 +130,7 @@ public class OpenSCProductAdapter implements ProductAdapter {
 		final List<Product> products = new ArrayList<>();
 		String version = null;
 		boolean enabled = false;
-		OpenSCSignatureToken token = new OpenSCSignatureToken(null);
+		OpenSCSignatureToken token = OpenSCSignatureToken.forToolsOnly();
 		try {
 			byte[] output = token.launchProcess("opensc-tool -i");
 			String outputStr = new String(output).trim();
