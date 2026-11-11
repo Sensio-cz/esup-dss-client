@@ -15,7 +15,6 @@ package org.esupportail.esupdssclient.macos.keystore;
 
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.token.DSSPrivateKeyEntry;
-import eu.europa.esig.dss.token.AppleSignatureToken;
 import eu.europa.esig.dss.token.PasswordInputCallback;
 import eu.europa.esig.dss.token.SignatureTokenConnection;
 import org.esupportail.esupdssclient.api.*;
@@ -60,7 +59,7 @@ public class MacKeychainProductAdapter implements ProductAdapter {
 
 	@Override
 	public SignatureTokenConnection connect(EsupDSSClientAPI api, Product product, PasswordInputCallback callback) {
-		return new AppleSignatureToken();
+		return new MacKeychainSignatureToken();
 	}
 
 	@Override
