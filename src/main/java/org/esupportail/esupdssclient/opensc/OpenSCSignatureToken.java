@@ -46,6 +46,7 @@ public class OpenSCSignatureToken implements SignatureTokenConnection {
     private final KeyStore.PasswordProtection passwordProtection;
     private String module = "";
     private String slot = "";
+    private final List<String> tokenSlots = new ArrayList<>();
     private String resolvedId;
 
     public OpenSCSignatureToken(KeyStore.PasswordProtection passwordProtection) {
@@ -81,9 +82,13 @@ public class OpenSCSignatureToken implements SignatureTokenConnection {
 
                     if (tokenPresent) {
                         String slotId = line.substring(line.indexOf("(") + 1, line.indexOf(")")).trim();
-                        this.slot = " --slot " + slotId;
+                        // Keep every token slot: cards with several PINs (e.g. Gemalto IDPrime)
+                        // expose one slot per PIN, and the signing cert is often not on the first.
+                        tokenSlots.add(" --slot " + slotId);
+                        if (StringUtils.isBlank(this.slot)) {
+                            this.slot = " --slot " + slotId;
+                        }
                         logger.info("OpenSC>>>Detected slot with token: {}", slotId);
-                        break;
                     } else {
                         logger.debug("OpenSC>>>No token detected in slot: {}", line);
                     }
@@ -236,6 +241,19 @@ public class OpenSCSignatureToken implements SignatureTokenConnection {
     }
 
     private String findFirstAvailableId() {
+        if (tokenSlots.size() > 1) {
+            // Several PIN slots: pick the one that actually holds a certificate and stick to it,
+            // so reading the cert and signing both target that slot (and its PIN).
+            for (String tokenSlot : tokenSlots) {
+                String id = extractId("pkcs11-tool -O --type cert" + module + tokenSlot);
+                if (StringUtils.isNotBlank(id)) {
+                    logger.info("OpenSC>>>Using slot{} holding certificate ID {}", tokenSlot, id);
+                    this.slot = tokenSlot;
+                    return id;
+                }
+            }
+        }
+
         List<String> commands = new ArrayList<>();
         String configuredGetIdCommand = EsupDSSClientLauncher.getProperties().getProperty("opensc_command_get_id");
         if (StringUtils.isNotBlank(configuredGetIdCommand)) {
