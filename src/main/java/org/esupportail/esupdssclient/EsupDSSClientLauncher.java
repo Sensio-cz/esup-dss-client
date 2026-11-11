@@ -17,10 +17,12 @@ import com.sun.javafx.application.LauncherImpl;
 import javafx.application.Application;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.esupportail.esupdssclient.api.AppConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -31,6 +33,11 @@ import java.util.Properties;
 
 public class EsupDSSClientLauncher {
 
+	// Must run before any logger is created: slf4j-simple reads its settings once.
+	static {
+		configureLogFile();
+	}
+
 	private static final Logger logger = LoggerFactory.getLogger(EsupDSSClientLauncher.class.getName());
 
 	private static AppConfig config;
@@ -38,6 +45,33 @@ public class EsupDSSClientLauncher {
 	private static Properties props;
 
 	private static GlobalConfigurer globalConfigurer;
+
+	/**
+	 * Writes the log to a per-user file users can attach to a support request:
+	 * ~/Library/Logs on macOS (visible in Console.app), %LOCALAPPDATA% on Windows.
+	 * Rewritten on each start. Settings passed with -D take precedence.
+	 */
+	static void configureLogFile() {
+		if (System.getProperty("org.slf4j.simpleLogger.logFile") != null) {
+			return;
+		}
+		File dir;
+		if (SystemUtils.IS_OS_MAC) {
+			dir = new File(SystemUtils.USER_HOME, "Library/Logs");
+		} else if (SystemUtils.IS_OS_WINDOWS && System.getenv("LOCALAPPDATA") != null) {
+			dir = new File(System.getenv("LOCALAPPDATA"), "esup-dss-client");
+		} else {
+			dir = new File(SystemUtils.USER_HOME, ".esup-dss-client");
+		}
+		if (!dir.isDirectory() && !dir.mkdirs()) {
+			return;
+		}
+		System.setProperty("org.slf4j.simpleLogger.logFile", new File(dir, "esup-dss-client.log").getPath());
+		System.setProperty("org.slf4j.simpleLogger.showDateTime", "true");
+		System.setProperty("org.slf4j.simpleLogger.dateTimeFormat", "yyyy-MM-dd HH:mm:ss");
+		// OpenSC command lines are masked (no PIN) and are what support needs to see.
+		System.setProperty("org.slf4j.simpleLogger.log.org.esupportail.esupdssclient.opensc", "debug");
+	}
 
 	public static void main(String[] args) throws Exception {
 		EsupDSSClientLauncher launcher = new EsupDSSClientLauncher();

@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.esupportail</groupId>
 	<artifactId>esupdssclient</artifactId>
-	<version>1.3.0-sensio3</version>
+	<version>1.3.0-sensio4</version>
 	<packaging>jar</packaging>
 	<name>Esup-DSS-Client</name>
 	<description>Multi-browser, multi-platform, OpenSC remote signature tool.</description>
@@ -43,7 +43,7 @@
 	<properties>
 		<app.version>${project.version}</app.version>
 		<!-- Numeric version for the Windows exe and macOS pkg metadata; bump together with <version>. -->
-		<installer.version>1.3.0.2</installer.version>
+		<installer.version>1.3.0.4</installer.version>
 		<java.version>21</java.version>
 		<encoding>UTF-8</encoding>
 		<skip.package>false</skip.package>
@@ -293,6 +293,12 @@
 					<groupId>org.slf4j</groupId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<!-- Log file for end-user support; configured in EsupDSSClientLauncher. -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<version>2.0.17</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
